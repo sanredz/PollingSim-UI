@@ -15,6 +15,7 @@ namespace RVO
         private Path[] paths;
         private int[] currentNodeInPath;
         private int agentCount = 20; // Total number of agents
+        public Queue<GameObject> inQueue;
 
         public void AddUnityObstacleToRVO(GameObject unityObstacle)
         {
@@ -78,6 +79,17 @@ namespace RVO
             UpdateSeekers(start, goals[agentIndex], agentIndex);
         }
 
+        void UpdateGoalsInQueue(int agentIndex){
+            for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
+                if (!inQueue.Contains(RVOAgents[i])){
+                    var agentPos = RVOAgents[agentIndex].transform.position;
+                    agentPos.z += 5;
+                    UpdateAgentGoal(i, RVOAgents[i].transform.position, agentPos);
+                    RVOAgents[i].name = "Agent: " + i + "-- Goal: " + agentPos + "-- AT: " + agentIndex;
+                }
+            }
+        }
+
         public void SetTimeStep(float t){
             Simulator.Instance.setTimeStep(t);
         }
@@ -95,6 +107,7 @@ namespace RVO
         public void InitializeAgents(){
             Simulator.Instance.setAgentDefaults(15.0f, 10, 5.0f, 5.0f, 1.0f, 1.0f, new RVO.Vector2(0.0f, 0.0f));
 
+            inQueue = new Queue<GameObject>();
             RVOAgents = new GameObject[agentCount];
             goals = new Vector3[agentCount];
             seekers = new Seeker[agentCount];
@@ -173,10 +186,14 @@ namespace RVO
                 if (paths[i] == null){
                     continue;
                 }
-                if (currentNodeInPath[i] >= paths[i].vectorPath.Count){
-                    Vector3 goal = new Vector3(40,1,40);
-                    UpdateAgentGoal(i, RVOAgents[i].transform.position, goal);
+                if (currentNodeInPath[i] >= paths[i].vectorPath.Count & !inQueue.Contains(RVOAgents[i]) ){
+                    inQueue.Enqueue(RVOAgents[i]);
+                    UpdateGoalsInQueue(i); 
+                    i = 0;
                     continue;
+                }
+                else if (currentNodeInPath[i] >= paths[i].vectorPath.Count){
+                    continue; 
                 }
 
                 Vector3 currentWaypoint = paths[i].vectorPath[currentNodeInPath[i]];
@@ -188,10 +205,11 @@ namespace RVO
                 Vector2 goalVector = toRVOVector(directionToWaypoint);
 
                 // Check if close to the current waypoint and increment index
-                if (Vector3.Distance(RVOAgents[i].transform.position, currentWaypoint) < 5.0f)
+                if (Vector3.Distance(RVOAgents[i].transform.position, currentWaypoint) < 3f)
                 {
                     currentNodeInPath[i]++; // Increment the waypoint index for this agent
                 }
+
 
                 if (RVOMath.absSq(goalVector) > 1.0f)
                 {
@@ -200,10 +218,28 @@ namespace RVO
 
                 Simulator.Instance.setAgentPrefVelocity(i, goalVector);
                 //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
-                RVOAgents[i].transform.localPosition = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
+                RVOAgents[i].transform.position = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
             }
             Simulator.Instance.doStep();
         }
+
+        // void Update()
+        //         {
+        //             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
+        //                 Vector2 goalVector = toRVOVector(goals[i]) - Simulator.Instance.getAgentPosition(i);
+
+        //                 if (RVOMath.absSq(goalVector) > 1.0f)
+        //                 {
+        //                     goalVector = RVOMath.normalize(goalVector);
+        //                 }
+
+        //                 Simulator.Instance.setAgentPrefVelocity(i, goalVector);
+        //                 //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
+        //                 RVOAgents[i].transform.localPosition = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
+        //             }
+        //             Simulator.Instance.doStep();
+        //       }
+
 
     }
 }
