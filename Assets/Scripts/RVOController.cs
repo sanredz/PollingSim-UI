@@ -8,13 +8,15 @@ namespace RVO
 {
     public class RVOController : MonoBehaviour
     {
+        private bool tempFlag = false;
         private GameObject[] unityObstacles;
         private Vector3[] goals;
         private GameObject[] RVOAgents;
         public GameObject prefab;
         private Seeker[] seekers;
         private Path[] paths;
-        public float qTimer = 0.0f;
+        private KeyValuePair<int, GameObject> agentPair = new KeyValuePair<int, GameObject>();
+        private float qTimer = 0.0f;
         private float qTime = 3.0f;
         private int[] currentNodeInPath;
         private int agentCount = 20; // Total number of agents
@@ -71,7 +73,11 @@ namespace RVO
                     Debug.LogError("Path error: " + p.errorLog);
                 }
             }
-
+            if (tempFlag){
+                Debug.Log("Agent number: " + i + " is getting moved from Queue to: " + start);
+                Debug.Log("Agent number: " + i + " current position is in Queue is: " + RVOAgents[i].transform.position);
+                tempFlag = false;
+            }
             seekers[i].StartPath(start, end, OnPathComplete);
         }
 
@@ -164,7 +170,14 @@ namespace RVO
                 Destroy(RVOAgents[i]);
             }
             Simulator.Instance.Clear();
+            ResetTimers();
         }
+
+        void ResetTimers(){
+            qTimer = 0f;
+            qTime = 3f;
+        }
+
         void Start()
         {
 
@@ -183,6 +196,33 @@ namespace RVO
             }
         }
 
+
+        void UpdateCalc(int i){
+            Vector3 currentWaypoint = paths[i].vectorPath[currentNodeInPath[i]];
+            Vector3 directionToWaypoint = (currentWaypoint - RVOAgents[i].transform.position).normalized;
+
+            // Vector2 goalVector = toRVOVector(goals[i]) - Simulator.Instance.getAgentPosition(i);
+
+            // Use the direction to the waypoint to set the preferred velocity
+            Vector2 goalVector = toRVOVector(directionToWaypoint);
+
+            // Check if close to the current waypoint and increment index
+            if (Vector3.Distance(RVOAgents[i].transform.position, currentWaypoint) < 3f)
+            {
+                currentNodeInPath[i]++; // Increment the waypoint index for this agent
+            }
+
+
+            if (RVOMath.absSq(goalVector) > 1.0f)
+            {
+                goalVector = RVOMath.normalize(goalVector);
+            }
+
+            Simulator.Instance.setAgentPrefVelocity(i, goalVector);
+            //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
+            RVOAgents[i].transform.position = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
+        }
+
         void Update()
         {
             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
@@ -192,45 +232,32 @@ namespace RVO
                 if (currentNodeInPath[i] >= paths[i].vectorPath.Count & !inQueue.Any(pair => pair.Value == RVOAgents[i])){
                     inQueue.Enqueue(new KeyValuePair<int, GameObject>(i, RVOAgents[i]));
                     UpdateGoalsInQueue(i); 
+                    Debug.Log("Agent added to Queue");
                     i = 0;
-                    qTimeCheck();
                     continue;
                 }
                 else if (currentNodeInPath[i] >= paths[i].vectorPath.Count){
                     continue; 
                 }
 
-                Vector3 currentWaypoint = paths[i].vectorPath[currentNodeInPath[i]];
-                Vector3 directionToWaypoint = (currentWaypoint - RVOAgents[i].transform.position).normalized;
+               UpdateCalc(i);
 
-                // Vector2 goalVector = toRVOVector(goals[i]) - Simulator.Instance.getAgentPosition(i);
-
-                // Use the direction to the waypoint to set the preferred velocity
-                Vector2 goalVector = toRVOVector(directionToWaypoint);
-
-                // Check if close to the current waypoint and increment index
-                if (Vector3.Distance(RVOAgents[i].transform.position, currentWaypoint) < 3f)
-                {
-                    currentNodeInPath[i]++; // Increment the waypoint index for this agent
-                }
-
-
-                if (RVOMath.absSq(goalVector) > 1.0f)
-                {
-                    goalVector = RVOMath.normalize(goalVector);
-                }
-
-                Simulator.Instance.setAgentPrefVelocity(i, goalVector);
-                //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
-                RVOAgents[i].transform.position = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
             }
-            Simulator.Instance.doStep();
+            
             if (inQueue.Count > 0){
                 if (qTimeCheck()){
-                    Debug.Log("Agent: " + inQueue.Peek() + " has been in Queue for 3 seconds");
-                    //inQueue.Dequeue;
+                    Debug.Log("Agent: " + inQueue.Peek() + " has been in Queue for " + qTime + " seconds");
+                    agentPair = inQueue.Dequeue();
+                    int i = agentPair.Key;
+                    Debug.Log("About to change goal of agent " + i + " from the Queue");
+                    Vector3 newGoal = new Vector3(31,1,25); // Hårdkodat, bara för att testa koden.
+                    Debug.Log("Current position of Agent " + RVOAgents[i] + "in Queue is: " + RVOAgents[i].transform.position);
+                    tempFlag = true;
+                    UpdateAgentGoal(i, RVOAgents[i].transform.position, newGoal);
+                    //UpdateCalc(i);
                 }
             }
+            Simulator.Instance.doStep();
         }
 
         private bool qTimeCheck(){
@@ -242,25 +269,5 @@ namespace RVO
             }
             return false;
         }
-
-
-        // void Update()
-        //         {
-        //             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
-        //                 Vector2 goalVector = toRVOVector(goals[i]) - Simulator.Instance.getAgentPosition(i);
-
-        //                 if (RVOMath.absSq(goalVector) > 1.0f)
-        //                 {
-        //                     goalVector = RVOMath.normalize(goalVector);
-        //                 }
-
-        //                 Simulator.Instance.setAgentPrefVelocity(i, goalVector);
-        //                 //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
-        //                 RVOAgents[i].transform.localPosition = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
-        //             }
-        //             Simulator.Instance.doStep();
-        //       }
-
-
     }
 }

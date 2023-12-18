@@ -1181,6 +1181,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 4395459831494724309, guid: fde0002302bf1104990cdab8e66fc307, type: 3}
+  qTimer: 0
+  qTime: 3
 --- !u!4 &1062406258
 Transform:
   m_ObjectHideFlags: 0
