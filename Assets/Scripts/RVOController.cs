@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Pathfinding;
+using System.Linq;
 
 namespace RVO
 {
@@ -13,9 +14,11 @@ namespace RVO
         public GameObject prefab;
         private Seeker[] seekers;
         private Path[] paths;
+        public float qTimer = 0.0f;
+        private float qTime = 3.0f;
         private int[] currentNodeInPath;
         private int agentCount = 20; // Total number of agents
-        public Queue<GameObject> inQueue;
+        public Queue<KeyValuePair<int, GameObject>> inQueue;
 
         public void AddUnityObstacleToRVO(GameObject unityObstacle)
         {
@@ -81,7 +84,7 @@ namespace RVO
 
         void UpdateGoalsInQueue(int agentIndex){
             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
-                if (!inQueue.Contains(RVOAgents[i])){
+                if (!inQueue.Any(pair => pair.Value == RVOAgents[i])){
                     var agentPos = RVOAgents[agentIndex].transform.position;
                     agentPos.z += 5;
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, agentPos);
@@ -107,7 +110,7 @@ namespace RVO
         public void InitializeAgents(){
             Simulator.Instance.setAgentDefaults(15.0f, 10, 5.0f, 5.0f, 1.0f, 1.0f, new RVO.Vector2(0.0f, 0.0f));
 
-            inQueue = new Queue<GameObject>();
+            inQueue = new Queue<KeyValuePair<int, GameObject>>();
             RVOAgents = new GameObject[agentCount];
             goals = new Vector3[agentCount];
             seekers = new Seeker[agentCount];
@@ -186,10 +189,11 @@ namespace RVO
                 if (paths[i] == null){
                     continue;
                 }
-                if (currentNodeInPath[i] >= paths[i].vectorPath.Count & !inQueue.Contains(RVOAgents[i]) ){
-                    inQueue.Enqueue(RVOAgents[i]);
+                if (currentNodeInPath[i] >= paths[i].vectorPath.Count & !inQueue.Any(pair => pair.Value == RVOAgents[i])){
+                    inQueue.Enqueue(new KeyValuePair<int, GameObject>(i, RVOAgents[i]));
                     UpdateGoalsInQueue(i); 
                     i = 0;
+                    qTimeCheck();
                     continue;
                 }
                 else if (currentNodeInPath[i] >= paths[i].vectorPath.Count){
@@ -221,7 +225,24 @@ namespace RVO
                 RVOAgents[i].transform.position = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
             }
             Simulator.Instance.doStep();
-        }
+            if (inQueue.Count > 0){
+                if (qTimeCheck()){
+                    Debug.Log("Agent: " + inQueue.Peek() + " has been in Queue for 3 seconds");
+                    //inQueue.Dequeue;
+                }
+            }
+        }
+
+        private bool qTimeCheck(){
+            qTimer += Time.deltaTime;
+            //Debug.Log("time in Queue: " + qTimer + " Max Time: " + qTime);
+            if (qTimer > qTime){
+                qTimer = 0;
+                return true;
+            }
+            return false;
+        }
+
 
         // void Update()
         //         {
