@@ -9,10 +9,6 @@ namespace RVO
     public class RVOController : MonoBehaviour
     {
         // Bara debug variables, deleta dom efter.
-        private bool tempFlag = false;
-        private int iGlobal = -1;
-        private int firstAgent;
-        private bool firstFlag = false;
 
         // Riktiga variables
         private Vector3[] stations;
@@ -86,11 +82,6 @@ namespace RVO
                     Debug.LogError("Path error: " + p.errorLog);
                 }
             }
-            //if (tempFlag){
-            //    Debug.Log("Agent number: " + i + " is getting moved from Queue to: " + start);
-            //    Debug.Log("Agent number: " + i + " current position is in Queue is: " + RVOAgents[i].transform.position);
-            //    tempFlag = false;
-            //}
             seekers[i].StartPath(start, end, OnPathComplete);
         }
 
@@ -122,7 +113,6 @@ namespace RVO
             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
                 if (inQueueP1.Any(pair => pair.Value == RVOAgents[i]) & (currAgentPhase[i] == phase)){
                     Debug.Log("Update in Queue should occur, agents should move a step forward.");
-                    //firstPlace.z -= 10;
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, firstPlace);
                 }
                 else{
@@ -237,8 +227,6 @@ namespace RVO
                 Destroy(RVOAgents[i]);
             }
             Simulator.Instance.Clear();
-            firstAgent = -1;
-            firstFlag = false;
             ResetTimers();
         }
 
@@ -289,11 +277,6 @@ namespace RVO
             }
 
             Simulator.Instance.setAgentPrefVelocity(i, goalVector);
-            //Debug.Log($"Prefered: {Simulator.Instance.getAgentPrefVelocity(i)}");
-            if (tempFlag & i == iGlobal){
-                Debug.Log("RELOCATING: " + toUnityVector(Simulator.Instance.getAgentPosition(iGlobal)));
-                tempFlag = false;
-            }
             RVOAgents[i].transform.position = toUnityVector(Simulator.Instance.getAgentPosition(i)); 
         }
 
@@ -328,11 +311,6 @@ namespace RVO
                     Debug.Log("Agent added to Queue");
                     continue;
                 }
-                // else if (currentNodeInPath[i] >= paths[i].vectorPath.Count & inQueueP1.Any(pair => pair.Value == RVOAgents[i]) & currAgentPhase[i] == 2){
-                //     UpdateGoalsInQueueLine(i); 
-                //     StopRVOAgent(i);
-                //     continue;
-                // }
                 if (currentNodeInPath[i] >= paths[i].vectorPath.Count){
 
                     int indexInQueue = inQueueP1.FindIndex(pair => pair.Key.Equals(i));
@@ -358,26 +336,27 @@ namespace RVO
                UpdateCalc(i);
 
             }
-            if (firstFlag){
-                Debug.Log("FIRST AGENT IS AT: " + toUnityVector(Simulator.Instance.getAgentPosition(firstAgent)));
-            }
+
             if (inQueueP1.Count > 0){
                 if (qTimeCheck()){
                     //Debug.Log("Agent: " + inQueueP1.Peek() + " has been in Queue for " + qTime + " seconds");
                     agentPair = inQueueP1[0];
-                    inQueueP1.RemoveAt(0);
+                    inQueueP1.RemoveAt(0); 
                     int i = agentPair.Key;
                     currAgentPhase[i] += 1;
-                    //Debug.Log("About to change goal of agent " + i + " from the Queue");
-                    //Debug.Log("Current position of Agent " + RVOAgents[i] + " in Queue is: " + RVOAgents[i].transform.position);
-                    tempFlag = true;
-                    iGlobal = i;
+
                     Simulator.Instance.setAgentPosition(i, toRVOVector(RVOAgents[i].transform.position));
-                    //inQueueP1.Clear();
-                    UpdateGoalsInQueue(RVOAgents[i].transform.position, currAgentPhase[i]-1);
-                    //MoveQueue(RVOAgents[i].transform.position, currAgentPhase[i]-2);
+                    //UpdateGoalsInQueue(RVOAgents[i].transform.position, currAgentPhase[i]-1);
+                    if (inQueueP1.Count > 0){
+                        Debug.Log("DE3: ENTERED");
+                        agentPair = inQueueP1[0];
+                        int j = agentPair.Key;
+                        Vector3 agentGoalPos = RVOAgents[i].transform.position;
+                        UpdateAgentGoal(j, RVOAgents[j].transform.position, agentGoalPos);
+                    }
+
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, stations[1]);
-                    //UpdateCalc(i);
+                    
                 }
             }
             
