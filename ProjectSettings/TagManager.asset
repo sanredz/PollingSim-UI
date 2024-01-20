@@ -7,6 +7,11 @@ TagManager:
   - Obstacle
   - RVOSim
   - Agent
+  - Station
+  - Unqueued
+  - Queued
+  - "R\xF6stb\xE5s"
+  - Valsedlar
   layers:
   - Default
   - TransparentFX
