@@ -478,6 +478,7 @@ namespace RVO
                                     Simulator.Instance.setAgentPosition(agentIndex, toRVOVector(RVOAgents[agentIndex].transform.position));
                                     UpdateAgentGoal(agentIndex, RVOAgents[agentIndex].transform.position, booth.transform.position);
                                     Debug.Log("Agent: " + RVOAgents[agentIndex].name + " is triggered to go to booth: "+ booth.name +" by ballot index: " + ballotIndex);
+                                    break;
                                 }
                             }
                         }
