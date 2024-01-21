@@ -362,12 +362,12 @@ namespace RVO
                         }
                     }
                     // Endast för att agenten ska finnas med i queuesList. Även om denna fas aldrig har en kö. Underlättar koden för att trigga att en agent lämnar en station.
-                    else if (currAgentPhase[i] == 2){
+                    else if (currAgentPhase[i] == 2 & !enqueued[i]){
                         queuesList[1].Add(new KeyValuePair<int, GameObject>(i, RVOAgents[i])); 
                         enqueued[i] = true;
                     }
                     // Endast för att agenten ska finnas med i queuesList. Även om denna fas aldrig har en kö. Underlättar koden för att trigga att en agent lämnar en station.
-                    else if (currAgentPhase[i] == 3){
+                    else if (currAgentPhase[i] == 3 & !enqueued[i]){
                         queuesList[2].Add(new KeyValuePair<int, GameObject>(i, RVOAgents[i])); 
                         enqueued[i] = true;
                     }
@@ -409,6 +409,7 @@ namespace RVO
                     }
 
                     GameObject ballot = getVacantBallot(i);
+                    Debug.Log("Agent: " + RVOAgents[i].name + " is moving to ballot: " + ballot.name);
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, ballot.transform.position);
                 }
             }
@@ -418,7 +419,6 @@ namespace RVO
             {
                 foreach (var ballotEntry in ballotsDict)
                 {
-                    // Check if the ballot is not occupied
                     if (!ballotEntry.Value)
                     {
                         int ballotIndex = Array.IndexOf(ballots, ballotEntry.Key); // Assuming ballots is an array of GameObjects
@@ -446,9 +446,12 @@ namespace RVO
                                     // Update boothAgent dictionary
                                     boothAgent[booth] = agentIndex;
 
+                                    Debug.Log("QError: AgentIndex is xxx: " + agentIndex);
                                     // Remove the agent from the queue and update their status
                                     int indexInQueue = queuesList[1].FindIndex(pair => pair.Key.Equals(agentIndex));
+                                    Debug.Log("QError: IndexInQueue: " + indexInQueue);
                                     queuesList[1].RemoveAt(indexInQueue);
+                                    DebugPrintList();
                                     enqueued[agentIndex] = false;
                                     currAgentPhase[agentIndex] += 1;
 
@@ -665,7 +668,7 @@ namespace RVO
                 return true;
             }
             return false;
-            }
+        }
 
         private bool boothTimeCheck(int i){
             boothTimer[i] += Time.deltaTime;
@@ -675,7 +678,14 @@ namespace RVO
                 return true;
             }
             return false;
+        }
+
+        private void DebugPrintList(){
+            foreach (var kv in queuesList[1]){
+                Debug.Log("QError: Has key: " + kv.Key + " and value: " + kv.Value);
             }
+        }
+
         // private void RestartAgent(int i){
         //     goals[i] = queueStations[0].transform.position;
         //     currentNodeInPath[i] = 0;
