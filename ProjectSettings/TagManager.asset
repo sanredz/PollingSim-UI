@@ -12,6 +12,8 @@ TagManager:
   - Queued
   - "R\xF6stb\xE5s"
   - Valsedlar
+  - Exit
+  - Enter
   layers:
   - Default
   - TransparentFX

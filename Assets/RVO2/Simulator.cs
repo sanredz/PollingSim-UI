@@ -118,6 +118,35 @@ namespace RVO
             }
         }
 
+        
+        
+        
+        
+        /**
+         * <note> Custom function added by Sanjin Redzepagic </note>
+         * <summary> Allows for removal of agents and shifting the index of the remaining ones down.
+         * </summary>
+         *
+         */
+        
+        public void removeAgent(int agentId)
+            {
+                if (agentId < 0 || agentId >= agents_.Count)
+                {
+                    throw new ArgumentOutOfRangeException("agentId");
+                }
+
+                agents_.RemoveAt(agentId);
+
+                // Update agent IDs for all agents following the removed one
+                for (int i = agentId; i < agents_.Count; i++)
+                {
+                    agents_[i].id_ = i;
+                }
+            }
+        
+        
+        
         /**
          * <summary>Adds a new agent with default properties to the simulation.
          * </summary>

@@ -33,6 +33,10 @@ public class UIManager : MonoBehaviour
     //Reloads the Simulation
 	public void Reload(){
         rvo.ClearSimulation();
-        rvo.InitializeSimulation();
+        rvo.ResetSimulation();
 	}
+
+    public void PrintResults(){
+        
+    }
 }
