@@ -5,38 +5,92 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-public class UIManager : MonoBehaviour
-{
 
-    public RVO.RVOController rvo;
-    public Slider slider;
-    public TextMeshProUGUI sliderText;
-    // Start is called before the first frame update
-    void Start()
+namespace RVO{
+    public class UIManager : MonoBehaviour
     {
-        
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        float sliderValue = Mathf.Round(slider.value);
-        sliderText.text = sliderValue.ToString();
-        SetTimeStep(sliderValue);
-    }
+        private float ts;
+        private int agentStartCount;
+        private int agentTotalCount;
+        public RVO.RVOController rvo;
+        public Slider slider;
+        public float sliderValue;
+        public TMP_InputField inputAgents;
+        private int inputAgentsValue;
+        public TextMeshProUGUI sliderText;
+        public Button start;
+        // Start is called before the first frame update
+        void Start()
+        {
+            
+        }
 
-    public void SetTimeStep(float t){
-        float ts = t/100;
-        rvo.SetTimeStep(ts);
-    }
+        // Update is called once per frame
+        void Update()
+        {
+            sliderText.text = sliderValue.ToString();
+        }
 
-    //Reloads the Simulation
-	public void Reload(){
-        rvo.ClearSimulation();
-        rvo.ResetSimulation();
-	}
+        public void SetTimeStep(float t){
+            ts = t/100;
+        }
 
-    public void PrintResults(){
-        
+        private void ToggleStart(bool on){
+            if (on){
+                slider.gameObject.SetActive(true);
+                inputAgents.gameObject.SetActive(true);
+            }else{
+                slider.gameObject.SetActive(false);
+                inputAgents.gameObject.SetActive(false);
+            }
+        }
+
+        //Starts the Simulation
+        public void StartSim(){
+            sliderValue = Mathf.Round(slider.value);
+            SetTimeStep(sliderValue);
+
+            if (ValidateInput(inputAgents)){  
+                if (inputAgentsValue < 10){
+                    inputAgentsValue = 10;
+                }
+                else if (inputAgentsValue  > 200){
+                    inputAgentsValue = 200;
+                }
+                SceneVariables.agentTotalCount = inputAgentsValue;
+                SceneVariables.timeStep = ts;
+                SceneVariables.pause = false;
+                //ToggleStart(false);
+                rvo.StartSimulation();
+            }else{
+                // Add some text element that says that the input was wrong
+            }
+
+        }
+
+        public void Reload(){
+            SceneVariables.timeStep = 0f;
+            SceneVariables.pause = true;
+            ToggleStart(true);
+            rvo.ClearSimulation();
+            rvo.ResetSimulation();
+        }
+
+        private bool ValidateInput(TMP_InputField input){
+
+            if (int.TryParse(input.text, out inputAgentsValue))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public void PrintResults(){
+
+        }
     }
 }

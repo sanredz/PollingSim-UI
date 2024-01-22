@@ -44,9 +44,13 @@ namespace RVO
         private KeyValuePair<int, GameObject> agentPair = new KeyValuePair<int, GameObject>();
         private int[] currentNodeInPath;
         private int agentCount = 10; // Total number of agents
-        private int agentTotalCount = 20;
         public List<List<KeyValuePair<int, GameObject>>> queuesList;
+        private Vector3 spawnPosition;
+        private Vector3 goalPosition;
         public UIManager UIManager;
+        private int nextAgentIndex;
+
+
 
 
         public void AddUnityObstacleToRVO(GameObject unityObstacle)
@@ -114,8 +118,7 @@ namespace RVO
             for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
                 if (!enqueued[i] & currAgentPhase[i] == phase){
                     var agentPos = RVOAgents[agentIndex].transform.position;
-
-                    agentPos.z += 3;
+                    //agentPos.z -= 3;
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, agentPos);
                 }
             }
@@ -167,13 +170,14 @@ namespace RVO
             }
 
             // Setup Agents
-            RVOAgents = new GameObject[agentCount];
-            goals = new Vector3[agentCount];
-            seekers = new Seeker[agentCount];
-            paths = new Path[agentCount];
-            currentNodeInPath = new int[agentCount];
-            currAgentPhase = new int[agentCount];
-            enqueued = new bool[agentCount];
+            RVOAgents = new GameObject[SceneVariables.agentTotalCount];
+            goals = new Vector3[SceneVariables.agentTotalCount];
+            seekers = new Seeker[SceneVariables.agentTotalCount];
+            paths = new Path[SceneVariables.agentTotalCount];
+            currentNodeInPath = new int[SceneVariables.agentTotalCount];
+            currAgentPhase = new int[SceneVariables.agentTotalCount];
+            enqueued = new bool[SceneVariables.agentTotalCount];
+            nextAgentIndex = agentCount;
             
             
             for (int i = 0; i < qStationCount + ballotCount + boothCount; i++){
@@ -184,7 +188,6 @@ namespace RVO
             // Instantiate agents and set their goals
             for (int i = 0; i < agentCount; i++)
             {
-                Vector3 spawnPosition, goalPosition;
                 currentNodeInPath[i] = 0;
                 currAgentPhase[i] = 1;
                 enqueued[i] = false;
@@ -203,18 +206,42 @@ namespace RVO
                 UpdateSeekers(spawnPosition, goals[i], i);
                 
                 Simulator.Instance.addAgent(toRVOVector(spawnPosition));
-                
             }
+
+            // Instantiate agents but make them inactive
+            for (int i = agentCount; i < SceneVariables.agentTotalCount; i++)
+            {
+                currentNodeInPath[i] = 0;
+                currAgentPhase[i] = 1;
+                enqueued[i] = false;
+
+                spawnPosition = new Vector3(-31,1,37);
+                goalPosition = queueStations[0].transform.position;
+
+                GameObject go = GameObject.Instantiate(prefab, spawnPosition, Quaternion.identity) as GameObject;
+
+                RVOAgents[i] = go;
+                go.transform.parent = transform;
+                goals[i] = goalPosition;
+                seekers[i] = RVOAgents[i].AddComponent<Seeker>();
+                RVOAgents[i].name = "Agent: " + i; 
+
+                UpdateSeekers(spawnPosition, goals[i], i);
+                
+                Simulator.Instance.addAgent(toRVOVector(spawnPosition));
+                RVOAgents[i].SetActive(false);
+            }
+            
         }
 
         public void InitializeSimulation(){
-            Simulator.Instance.setTimeStep(0.0f);
+            SetTimeStep(SceneVariables.timeStep);
             InitializeObstacles();
             InitializeAgents();
         }
 
         public void ClearSimulation(){
-            for (int i = 0; i < agentCount; i++){
+            for (int i = 0; i < Simulator.Instance.getNumAgents(); i++){
                 Destroy(RVOAgents[i]);
             }
             Simulator.Instance.Clear();
@@ -280,7 +307,11 @@ namespace RVO
         {
             //float currentFrameDuration = Time.deltaTime;
             //Simulator.Instance.setTimeStep(currentFrameDuration);
-            for (int i = 0; i < Simulator.Instance.getNumAgents();i++) {
+            if (Simulator.Instance.getNumAgents() == 0 | SceneVariables.pause){
+                return;
+            }
+
+            for (int i = 0; i < nextAgentIndex; i++) {
                 if (paths[i] == null){
                     continue;
                 }
@@ -302,18 +333,9 @@ namespace RVO
                         continue;
                     }
                     if (currAgentPhase[i] == 5){
-                        if (agentTotalCount - agentCount > 0){
-                            agentTotalCount--;
-                            //RestartAgent(i);
-                        }
-                        else{
-                            // End Simulation, print results
-                            queuesList[4].Add(new KeyValuePair<int, GameObject>(i, RVOAgents[i])); 
-                            enqueued[i] = true;
-                            UpdateGoalsInQueue(i, currAgentPhase[i]); // Uppdatera alla agenter som var påväg till samma mål till att nu ställa sig bakom denna agent
-                            StopRVOAgent(i);
-                            UIManager.PrintResults();
-                        }
+                        enqueued[i] = true;
+                        RVOAgents[i].SetActive(false);
+                        UIManager.PrintResults();
                         continue;
                     }
                 }
@@ -390,6 +412,8 @@ namespace RVO
              * Below is for handling leaving stations 
              */
 
+
+            // For leaving the first queue (Entrance)
             if (queuesList[0].Count > 0){
                 if (!delayFirstAgent & vacantSpotToVote()){
                     agentPair = queuesList[0][0];
@@ -411,19 +435,30 @@ namespace RVO
                     GameObject ballot = getVacantBallot(i);
                     Debug.Log("Agent: " + RVOAgents[i].name + " is moving to ballot: " + ballot.name);
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, ballot.transform.position);
+                    
+                    // If there are more agents to add, spawn them
+                    if (nextAgentIndex <= SceneVariables.agentTotalCount-1){
+                        SpawnNextAgent();
+                    }
                 }
             }
 
             // For handling the ballot stations
             if (queuesList[1].Count > 0)
             {
+                // Iterate through every ballot
                 foreach (var ballotEntry in ballotsDict)
                 {
-                    if (!ballotEntry.Value)
+                    // Check if ballot is occupied and if the agent occupying it actually is listed in the queueList.
+                    if (!ballotEntry.Value & queuesList[1].Any(pair => pair.Key.Equals(ballotsAgent[ballotEntry.Key]))) // myList.Any(pair => pair.Key.Equals(keyToFind)). Kolla om queuesList[1] contains agenten som är det per ballotAgent dicten.
                     {
+                        // Get index of the ballot
                         int ballotIndex = Array.IndexOf(ballots, ballotEntry.Key); // Assuming ballots is an array of GameObjects
+                        
+                        // Check timer
                         if (ballotTimeCheck(ballotIndex))
                         {
+                            // Now look for a free booth.
                             foreach (var boothEntry in boothsDict)
                             {
                                 // Check if the booth is vacant
@@ -446,24 +481,22 @@ namespace RVO
                                     // Update boothAgent dictionary
                                     boothAgent[booth] = agentIndex;
 
-                                    Debug.Log("QError: AgentIndex is xxx: " + agentIndex);
                                     // Remove the agent from the queue and update their status
                                     int indexInQueue = queuesList[1].FindIndex(pair => pair.Key.Equals(agentIndex));
-                                    Debug.Log("QError: IndexInQueue: " + indexInQueue);
                                     queuesList[1].RemoveAt(indexInQueue);
-                                    DebugPrintList();
                                     enqueued[agentIndex] = false;
                                     currAgentPhase[agentIndex] += 1;
 
                                     // Update the agent's position and goal
                                     Simulator.Instance.setAgentPosition(agentIndex, toRVOVector(RVOAgents[agentIndex].transform.position));
                                     UpdateAgentGoal(agentIndex, RVOAgents[agentIndex].transform.position, booth.transform.position);
-                                    Debug.Log("Agent: " + RVOAgents[agentIndex].name + " is triggered to go to booth: "+ booth.name +" by ballot index: " + ballotIndex);
                                     break;
                                 }
                             }
                         }
                     }
+
+                    // Update the booth dict
                     if (boothToUpdate.Count > 0)
                     {
                         for (int i = boothToUpdate.Count - 1; i >= 0; i--)
@@ -476,7 +509,7 @@ namespace RVO
                         }
                     }
                 }
-                // Update the ballot flagged to be updated.
+                // Update the ballot dict
                 if (ballotToUpdate.Count > 0)
                 {
                     for (int i = ballotToUpdate.Count - 1; i >= 0; i--)
@@ -492,21 +525,36 @@ namespace RVO
 
             // For handling the booth stations
             if (queuesList[2].Count > 0) {
-                // Now send it to the Turn-in
+
+                // For each booth
                 foreach (var boothEntry in boothsDict)
                 {
-                    if (!boothEntry.Value){
-                        int boothIndex = Array.IndexOf(booths, boothEntry.Key); // Assuming ballots is an array of GameObjects
+                    // Check if booth is occupied and if the agent occupying it actually is listed in the queueList.
+                    if (!boothEntry.Value & queuesList[2].Any(pair => pair.Key.Equals(boothAgent[boothEntry.Key]))){
+
+                        // Get booth index.
+                        int boothIndex = Array.IndexOf(booths, boothEntry.Key); 
+
+                        // Timer
                         if (boothTimeCheck(boothIndex)){
-                            Debug.Log("Booth number: " + boothIndex + " will now be vacant");
+
+                            // Reset timer
                             boothTimer[boothIndex] = 0f;
+
+                            // Flag booth dict to be updated
                             boothToUpdate.Add(boothEntry.Key);
+
+                            // Set that booth is occupied by agent "agentIndex"
                             int agentIndex = boothAgent[boothEntry.Key];
                             boothAgent[boothEntry.Key] = -1;
+                            enqueued[agentIndex] = false;
+                            
+                            // Remove from queuesList
                             int indexInQueue = queuesList[2].FindIndex(pair => pair.Key.Equals(agentIndex));
                             queuesList[2].RemoveAt(indexInQueue);
-                            enqueued[agentIndex] = false;
+    
                             currAgentPhase[agentIndex] += 1;
+                            
                             if (queuesList[3].Count > 0){ // If there is someone at the Turn-in already
                                 Simulator.Instance.setAgentPosition(agentIndex, toRVOVector(RVOAgents[agentIndex].transform.position));
                                 int nextAgent = queuesList[3][queuesList[3].Count-1].Key;
@@ -557,7 +605,8 @@ namespace RVO
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, queueStations[2].transform.position);
                     
                     for (int k = 0; k < Simulator.Instance.getNumAgents(); k++){
-                        if (currAgentPhase[k] == 4 & !boothAgent.ContainsValue(k)){
+                        if (currAgentPhase[k] == 4 & !boothAgent.ContainsValue(k) & !enqueued[i]){
+                            Debug.Log("Turnin: Agent is in Queue at Turn In station " + RVOAgents[k].name);
                             UpdateAgentGoal(k, RVOAgents[k].transform.position, queueStations[1].transform.position); // Uppdatera alla agenter som var påväg till att ställa sig bakom denna agent att nu ställa sig längst fram
                         }
                     }
@@ -575,9 +624,33 @@ namespace RVO
         }
 
 
+        private void SpawnNextAgent(){
+            RVOAgents[nextAgentIndex].SetActive(true);
+            currentNodeInPath[nextAgentIndex] = 0;
+            currAgentPhase[nextAgentIndex] = 1;
+
+            int nextAgent = queuesList[0][queuesList[0].Count-1].Key;
+            spawnPosition = RVOAgents[nextAgent].transform.position;
+            spawnPosition.z += 9;
+            RVOAgents[nextAgentIndex].transform.position = spawnPosition;
+
+            goalPosition = spawnPosition;
+            goalPosition.z -= 6;
+
+            goals[nextAgentIndex] = goalPosition;
+            Simulator.Instance.setAgentPosition(nextAgentIndex, toRVOVector(RVOAgents[nextAgentIndex].transform.position));
+            UpdateSeekers(spawnPosition, goals[nextAgentIndex], nextAgentIndex);
+            //UpdateCalc(nextAgentIndex);
+            nextAgentIndex++;
+        }
+
         public void ResetSimulation(){
             string currentSceneName = SceneManager.GetActiveScene().name;
             SceneManager.LoadScene(currentSceneName);
+        }
+        public void StartSimulation(){
+            ClearSimulation();
+            ResetSimulation();
         }
         private GameObject getVacantBallot(int i){
             foreach (var ballotEntry in ballotsDict)
@@ -679,24 +752,5 @@ namespace RVO
             }
             return false;
         }
-
-        private void DebugPrintList(){
-            foreach (var kv in queuesList[1]){
-                Debug.Log("QError: Has key: " + kv.Key + " and value: " + kv.Value);
-            }
-        }
-
-        // private void RestartAgent(int i){
-        //     goals[i] = queueStations[0].transform.position;
-        //     currentNodeInPath[i] = 0;
-        //     currAgentPhase[i] = 1;
-        //     enqueued[i] = false;
-        //     Vector3 spawnPosition = new Vector3(-31,1,16+agentCount);
-        //     RVOAgents[i].transform.position = spawnPosition;
-        //     Simulator.Instance.setAgentPosition(i, toRVOVector(spawnPosition));
-        //     UpdateSeekers(spawnPosition, goals[i], i);
-        // }
-        
-
     }
 }
