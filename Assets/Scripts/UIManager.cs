@@ -19,16 +19,22 @@ namespace RVO{
         public TMP_InputField inputAgents;
         private int inputAgentsValue;
         public TextMeshProUGUI sliderText;
+        public TextMeshProUGUI totalVotersText;
+        public TextMeshProUGUI timeText;
+        public TextMeshProUGUI flowRateText;
         public Button start;
+        GameObject[] showOnFinishObjects;
         // Start is called before the first frame update
         void Start()
         {
-            
+            showOnFinishObjects = GameObject.FindGameObjectsWithTag("ShowOnFinish");
+            HideResults();
         }
 
         // Update is called once per frame
         void Update()
         {
+            sliderValue = Mathf.Round(slider.value);
             sliderText.text = sliderValue.ToString();
         }
 
@@ -48,8 +54,8 @@ namespace RVO{
 
         //Starts the Simulation
         public void StartSim(){
-            sliderValue = Mathf.Round(slider.value);
             SetTimeStep(sliderValue);
+            HideResults();
 
             if (ValidateInput(inputAgents)){  
                 if (inputAgentsValue < 10){
@@ -89,8 +95,23 @@ namespace RVO{
             }
         }
 
-        public void PrintResults(){
+        public void PrintResults(float time){
+            timeText.text = System.Math.Round(time,2).ToString();
+            totalVotersText.text = SceneVariables.agentTotalCount.ToString();
+            flowRateText.text = System.Math.Round((SceneVariables.agentTotalCount/(time/60)),2).ToString();
+            ShowResults();
+        }
 
+        public void HideResults(){
+            foreach(GameObject g in showOnFinishObjects){
+                g.SetActive(false);
+            }
+        }
+
+        public void ShowResults(){
+            foreach(GameObject g in showOnFinishObjects){
+                g.SetActive(true);
+            }
         }
     }
 }

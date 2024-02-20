@@ -49,6 +49,7 @@ namespace RVO
         private Vector3 goalPosition;
         public UIManager UIManager;
         private int nextAgentIndex;
+        private int agentsFinished;
 
 
 
@@ -178,6 +179,7 @@ namespace RVO
             currAgentPhase = new int[SceneVariables.agentTotalCount];
             enqueued = new bool[SceneVariables.agentTotalCount];
             nextAgentIndex = agentCount;
+            agentsFinished = 0;
             
             
             for (int i = 0; i < qStationCount + ballotCount + boothCount; i++){
@@ -310,7 +312,7 @@ namespace RVO
             if (Simulator.Instance.getNumAgents() == 0 | SceneVariables.pause){
                 return;
             }
-
+            
             for (int i = 0; i < nextAgentIndex; i++) {
                 if (paths[i] == null){
                     continue;
@@ -333,9 +335,13 @@ namespace RVO
                         continue;
                     }
                     if (currAgentPhase[i] == 5){
+                        agentsFinished++;
                         enqueued[i] = true;
                         RVOAgents[i].SetActive(false);
-                        UIManager.PrintResults();
+                        if (agentsFinished >= SceneVariables.agentTotalCount){
+                            SceneVariables.pause = true;
+                            UIManager.PrintResults(Simulator.Instance.getGlobalTime());
+                        }
                         continue;
                     }
                 }
@@ -554,12 +560,16 @@ namespace RVO
                             queuesList[2].RemoveAt(indexInQueue);
     
                             currAgentPhase[agentIndex] += 1;
-                            
-                            if (queuesList[3].Count > 0){ // If there is someone at the Turn-in already
-                                Simulator.Instance.setAgentPosition(agentIndex, toRVOVector(RVOAgents[agentIndex].transform.position));
+                            Simulator.Instance.setAgentPosition(agentIndex, toRVOVector(RVOAgents[agentIndex].transform.position));
+                            if (queuesList[3].Count > 0){ // If there is someone at the Turn-in already                            
+                                // ----
+                                // The solution below is better (if fixed) for dynamically finding a place in the queue, however its not working as intended due to agents 
+                                // getting in queue before they are actually in their final position, meaning sometimes the goal ends up a little strange like in the wall
+                                // for the next agent. So instead I set it it to statically just add -2 in x for each agent in queue (from the start pos).
+                                // -----
                                 int nextAgent = queuesList[3][queuesList[3].Count-1].Key;
                                 Vector3 nextAgentPos = RVOAgents[nextAgent].transform.position;
-                                nextAgentPos.z += 3;
+                                nextAgentPos.x -= 2;
                                 UpdateAgentGoal(agentIndex, RVOAgents[agentIndex].transform.position, nextAgentPos);
                             }
 
@@ -604,12 +614,14 @@ namespace RVO
                     Simulator.Instance.setAgentPosition(i, toRVOVector(RVOAgents[i].transform.position));
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, queueStations[2].transform.position);
                     
-                    for (int k = 0; k < Simulator.Instance.getNumAgents(); k++){
-                        if (currAgentPhase[k] == 4 & !boothAgent.ContainsValue(k) & !enqueued[i]){
-                            Debug.Log("Turnin: Agent is in Queue at Turn In station " + RVOAgents[k].name);
-                            UpdateAgentGoal(k, RVOAgents[k].transform.position, queueStations[1].transform.position); // Uppdatera alla agenter som var påväg till att ställa sig bakom denna agent att nu ställa sig längst fram
-                        }
-                    }
+                    // for (int k = 0; k < Simulator.Instance.getNumAgents(); k++){
+                    //     if (currAgentPhase[k] == 4 & !boothAgent.ContainsValue(k) & !enqueued[i]){
+                    //         int nextAgent = queuesList[3][queuesList[3].Count-1].Key;
+                    //         Vector3 nextAgentPos = RVOAgents[nextAgent].transform.position;
+                    //         nextAgentPos.x -= 2;
+                    //         UpdateAgentGoal(k, RVOAgents[k].transform.position, nextAgentPos); // Uppdatera alla agenter som var påväg till att ställa sig bakom denna agent att nu ställa sig längst fram
+                    //     }
+                    // }
                 }
             }
 
