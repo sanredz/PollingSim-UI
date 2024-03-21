@@ -50,6 +50,7 @@ namespace RVO
         public UIManager UIManager;
         private int nextAgentIndex;
         private int agentsFinished;
+        private int boothsVacant;
 
 
 
@@ -157,6 +158,7 @@ namespace RVO
             ballotCount = ballots.Length;
             boothToUpdate = new List<GameObject>();
             ballotToUpdate = new List<GameObject>();
+            boothsVacant = boothCount;
 
             //Booths and Ballots will have an accompanying bool value to indicate if the station is vacant or not.
             for (int i = 0; i < boothCount; i++){
@@ -442,6 +444,9 @@ namespace RVO
                     Debug.Log("Agent: " + RVOAgents[i].name + " is moving to ballot: " + ballot.name);
                     UpdateAgentGoal(i, RVOAgents[i].transform.position, ballot.transform.position);
                     
+                    // Decrement number of available booths
+                    boothsVacant--;
+
                     // If there are more agents to add, spawn them
                     if (nextAgentIndex <= SceneVariables.agentTotalCount-1){
                         SpawnNextAgent();
@@ -576,6 +581,8 @@ namespace RVO
                             else{ // If Turn-ins empty
                                 UpdateAgentGoal(agentIndex, RVOAgents[agentIndex].transform.position, queueStations[1].transform.position);
                             }
+                            // Increment number of available booths;
+                            boothsVacant++;
                         }
                     }
                 }
@@ -709,7 +716,8 @@ namespace RVO
             bool isVacantBallot = ballotsDict.Values.Any(vacant => vacant);
 
             // Check if there is at least one vacant booth
-            bool isVacantBooth = boothsDict.Values.Any(vacant => vacant);
+            //bool isVacantBooth = boothsDict.Values.Any(vacant => vacant);
+            bool isVacantBooth = boothsVacant != 0;
 
             // Return true if both a vacant ballot and a vacant booth are found
             Debug.Log("Vacant Status-- Ballot: " + isVacantBallot + " Booth: " + isVacantBooth);
