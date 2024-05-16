@@ -22,6 +22,11 @@ namespace RVO{
         public TextMeshProUGUI totalVotersText;
         public TextMeshProUGUI timeText;
         public TextMeshProUGUI flowRateText;
+        public TextMeshProUGUI privacyInfringementsText;
+        public TextMeshProUGUI privacyInfringementsBText;
+        public TextMeshProUGUI queueAverageText;
+        public TextMeshProUGUI haltVotersText;
+
         public Button start;
         GameObject[] showOnFinishObjects;
         // Start is called before the first frame update
@@ -38,9 +43,9 @@ namespace RVO{
             sliderText.text = sliderValue.ToString();
         }
 
-        public void SetTimeStep(float t){
-            ts = t/100;
-        }
+        // public void SetTimeStep(float t){
+        //     ts = t/100;
+        // }
 
         private void ToggleStart(bool on){
             if (on){
@@ -52,9 +57,9 @@ namespace RVO{
             }
         }
 
-        //Starts the Simulation
+        //Starts the Simulation using buttons
         public void StartSim(){
-            SetTimeStep(sliderValue);
+            //SetTimeStep(sliderValue);
             HideResults();
 
             if (ValidateInput(inputAgents)){  
@@ -95,10 +100,14 @@ namespace RVO{
             }
         }
 
-        public void PrintResults(float time){
+        public void PrintResults(float time, int privacyInfringements, int privacyInfringementsB, float averageQueue, float haltVotersTimer){
             timeText.text = System.Math.Round(time,2).ToString();
             totalVotersText.text = SceneVariables.agentTotalCount.ToString();
             flowRateText.text = System.Math.Round((SceneVariables.agentTotalCount/(time/60)),2).ToString();
+            privacyInfringementsText.text = privacyInfringements.ToString();
+            privacyInfringementsBText.text = privacyInfringementsB.ToString();
+            queueAverageText.text = averageQueue.ToString();
+            haltVotersText.text = haltVotersTimer.ToString();
             ShowResults();
         }
 

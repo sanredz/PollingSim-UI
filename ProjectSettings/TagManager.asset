@@ -15,6 +15,15 @@ TagManager:
   - Exit
   - Enter
   - ShowOnFinish
+  - BallotPriv
+  - BallotPriv1
+  - BallotPriv2
+  - BoothPriv1
+  - BoothPriv2
+  - BoothPriv3
+  - BoothPriv4
+  - BoothPriv5
+  - ExitTrigger
   layers:
   - Default
   - TransparentFX
